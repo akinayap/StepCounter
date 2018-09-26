@@ -1,0 +1,7 @@
+<resources>
+    <string name="app_name">Step Counter</string>
+    <string name="tab_text_1">Days</string>
+    <string name="tab_text_2">Weeks</string>
+    <string name="tab_text_3">Months</string>
+    <string name="tab_text_4">Years</string>
+</resources>
