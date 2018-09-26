@@ -9,6 +9,8 @@ import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.MotionEvent;
+import android.view.View;
+import android.widget.Button;
 
 import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.components.LimitLine;
@@ -28,7 +30,6 @@ import com.google.android.gms.fitness.Fitness;
 import com.google.android.gms.fitness.FitnessOptions;
 import com.google.android.gms.fitness.data.Bucket;
 import com.google.android.gms.fitness.data.DataPoint;
-import com.google.android.gms.fitness.data.DataSet;
 import com.google.android.gms.fitness.data.DataSource;
 import com.google.android.gms.fitness.data.DataType;
 import com.google.android.gms.fitness.data.Field;
@@ -76,6 +77,7 @@ public class MainActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
+
         TabLayout tabLayout = findViewById(R.id.tabs);
         tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
             @Override
@@ -98,7 +100,6 @@ public class MainActivity extends AppCompatActivity {
         FitnessOptions fitnessOptions = FitnessOptions.builder().
                                         addDataType(DataType.TYPE_STEP_COUNT_CUMULATIVE).
                                         addDataType(DataType.TYPE_STEP_COUNT_DELTA).build();
-
 
         if (!GoogleSignIn.hasPermissions(GoogleSignIn.getLastSignedInAccount(this), fitnessOptions)) {
             GoogleSignIn.requestPermissions(this, REQUEST_OAUTH_REQUEST_CODE,
@@ -177,7 +178,7 @@ public class MainActivity extends AppCompatActivity {
                 break;
         }
     }
-    void drawGraph(int pos, List<BarEntry> datatype, long range, long startValue, long endValue, long moveView){
+    void drawGraph(int pos, List<BarEntry> datatype, final long range, long startValue, long endValue, long moveView){
         // Get data here
         chart = findViewById(R.id.chart);
         dataSet = new BarDataSet(datatype, "Label");
@@ -202,17 +203,59 @@ public class MainActivity extends AppCompatActivity {
 
         chart.setAutoScaleMinMaxEnabled(true); //Scales the Y axis as it moves along
         chart.setExtraOffsets(0, 45, 0, 0);
-/*        chart.setOnChartValueSelectedListener(new OnChartValueSelectedListener() {
+
+        chart.setOnChartValueSelectedListener(new OnChartValueSelectedListener() {
             @Override
             public void onValueSelected(Entry e, Highlight h) {
-                chart.moveViewToX(e.getX() - (range/2));
             }
 
             @Override
             public void onNothingSelected() {
 
             }
-        });*/
+        });
+        chart.setOnChartGestureListener(new OnChartGestureListener() {
+            @Override
+            public void onChartGestureStart(MotionEvent me, ChartTouchListener.ChartGesture lastPerformedGesture) {
+
+            }
+
+            @Override
+            public void onChartGestureEnd(MotionEvent me, ChartTouchListener.ChartGesture lastPerformedGesture) {
+
+            }
+
+            @Override
+            public void onChartLongPressed(MotionEvent me) {
+
+            }
+
+            @Override
+            public void onChartDoubleTapped(MotionEvent me) {
+
+            }
+
+            @Override
+            public void onChartSingleTapped(MotionEvent me) {
+
+            }
+
+            @Override
+            public void onChartFling(MotionEvent me1, MotionEvent me2, float velocityX, float velocityY) {
+
+            }
+
+            @Override
+            public void onChartScale(MotionEvent me, float scaleX, float scaleY) {
+
+            }
+
+            @Override
+            public void onChartTranslate(MotionEvent me, float dX, float dY) {
+                chart.highlightValues(null);
+            }
+        });
+
         IAxisValueFormatter xAxisFormatter = new CustomAxis(pos, chart);
 
         XAxis xAxis = chart.getXAxis();
@@ -248,6 +291,24 @@ public class MainActivity extends AppCompatActivity {
         chart.fitScreen();
         chart.invalidate();
         chart.setVisibleXRange(range, range); // Week 7, Month 30, Year 12,
+
+        Button leftBtn = findViewById(R.id.leftBtn);
+        Button rightBtn = findViewById(R.id.rightBtn);
+
+        leftBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                movePrev(range, chart.getLowestVisibleX());
+            }
+        });
+
+        rightBtn.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                moveNext(range, chart.getLowestVisibleX());
+            }
+        });
+
     }
     private void drawLL(XAxis xAxis, int pos, long dateStart, long dateEnd) {
         switch(pos)
@@ -566,5 +627,13 @@ public class MainActivity extends AppCompatActivity {
 
         Log.e("Range Start  ", timeFormat.format(start) + " " + dateFormat.format(start));
         Log.e("Range End    ", timeFormat.format(end) + " " + dateFormat.format(end));
+    }
+
+    // For translating graph
+    void movePrev(long range, float lowestValue){
+        chart.moveViewToX(lowestValue - range);
+    }
+    void moveNext(long range, float lowestValue){
+        chart.moveViewToX(lowestValue + range);
     }
 }

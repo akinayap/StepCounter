@@ -63,12 +63,12 @@
         android:layout_marginTop="8dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/textView">
+        app:layout_constraintTop_toBottomOf="@+id/currTimeText">
 
     </com.github.mikephil.charting.charts.BarChart>
 
     <TextView
-        android:id="@+id/textView"
+        android:id="@+id/currTimeText"
         android:layout_width="wrap_content"
         android:layout_height="20dp"
         android:layout_marginEnd="8dp"
@@ -79,6 +79,32 @@
         android:text="Today"
         android:textSize="14sp"
         app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tabs" />
+
+    <Button
+        android:id="@+id/rightBtn"
+        android:layout_width="9dp"
+        android:layout_height="13dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginEnd="16dp"
+        android:layout_marginRight="16dp"
+        android:layout_marginBottom="8dp"
+        android:background="@drawable/right_arrow"
+        app:layout_constraintBottom_toTopOf="@+id/chart"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/tabs" />
+
+    <Button
+        android:id="@+id/leftBtn"
+        android:layout_width="9dp"
+        android:layout_height="13dp"
+        android:layout_marginStart="16dp"
+        android:layout_marginLeft="16dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
+        android:background="@drawable/left_arrow"
+        app:layout_constraintBottom_toTopOf="@+id/chart"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tabs" />
 
