@@ -11,6 +11,7 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.TextView;
 
 import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.components.LimitLine;
@@ -33,6 +34,7 @@ import com.google.android.gms.fitness.data.DataPoint;
 import com.google.android.gms.fitness.data.DataSource;
 import com.google.android.gms.fitness.data.DataType;
 import com.google.android.gms.fitness.data.Field;
+import com.google.android.gms.fitness.data.Subscription;
 import com.google.android.gms.fitness.request.DataReadRequest;
 import com.google.android.gms.fitness.result.DataReadResponse;
 import com.google.android.gms.tasks.OnCompleteListener;
@@ -58,6 +60,9 @@ public class MainActivity extends AppCompatActivity {
     public static final String[] months = new String[] {
             "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
     };
+
+    Button leftBtn;
+    Button rightBtn;
 
     private static final int REQUEST_OAUTH_REQUEST_CODE = 0x1001;
     public static long startHour;
@@ -111,6 +116,18 @@ public class MainActivity extends AppCompatActivity {
 
     public void subscribe(){
         Fitness.getRecordingClient(this, GoogleSignIn.getLastSignedInAccount(this))
+                .listSubscriptions(DataType.TYPE_STEP_COUNT_CUMULATIVE)
+                .addOnSuccessListener(new OnSuccessListener<List<Subscription>>() {
+                    @Override
+                    public void onSuccess(List<Subscription> subscriptions) {
+                        for (Subscription sc : subscriptions) {
+                            DataType dt = sc.getDataType();
+                            readData();
+                            Log.i("Google Success", "Active subscription for data type: " + dt.getName());
+                        }
+                    }
+                });
+/*        Fitness.getRecordingClient(this, GoogleSignIn.getLastSignedInAccount(this))
                 .subscribe(DataType.TYPE_STEP_COUNT_CUMULATIVE).addOnCompleteListener(
                         new OnCompleteListener<Void>() {
                             @Override
@@ -122,7 +139,7 @@ public class MainActivity extends AppCompatActivity {
                                     Log.e("Google Failed", "There was a problem subscribing.", task.getException());
                                 }
                             }
-                        });
+                        });*/
     }
 
     @Override
@@ -140,14 +157,12 @@ public class MainActivity extends AppCompatActivity {
 
         switch (pos) {
             case 0:
-                Calendar now = Calendar.getInstance();
-                int currHour = now.get(Calendar.HOUR);
                 drawGraph(pos, hours, 24,startHourValue - startHour, today * 24,  (today - 1) * 24);
                 break;
             case 1:
                 long startOfWeek = startDay - (startDay % 7) + 3;
-                long latestWeek = (today - (today % 7) + 3) + 7;
-                drawGraph(pos, days, 7, startOfWeek, latestWeek, latestWeek + 3);
+                long latestWeek = (today - (today % 7) + 3);
+                drawGraph(pos, days, 7, startOfWeek, latestWeek, latestWeek);
                 break;
             case 2:
                 long startMYear = determineYear(startDay);
@@ -178,7 +193,7 @@ public class MainActivity extends AppCompatActivity {
                 break;
         }
     }
-    void drawGraph(int pos, List<BarEntry> datatype, final long range, long startValue, long endValue, long moveView){
+    void drawGraph(int pos, List<BarEntry> datatype, final long range, final long startValue, final long endValue, long moveView){
         // Get data here
         chart = findViewById(R.id.chart);
         dataSet = new BarDataSet(datatype, "Label");
@@ -292,20 +307,23 @@ public class MainActivity extends AppCompatActivity {
         chart.invalidate();
         chart.setVisibleXRange(range, range); // Week 7, Month 30, Year 12,
 
-        Button leftBtn = findViewById(R.id.leftBtn);
-        Button rightBtn = findViewById(R.id.rightBtn);
+        leftBtn = findViewById(R.id.leftBtn);
+        rightBtn = findViewById(R.id.rightBtn);
+
+        if(startValue < chart.getLowestVisibleX())
+            leftBtn.setBackgroundResource(R.drawable.left_arrow);
 
         leftBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                movePrev(range, chart.getLowestVisibleX());
+                movePrev(range, chart.getLowestVisibleX(), startValue, endValue);
             }
         });
 
         rightBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                moveNext(range, chart.getLowestVisibleX());
+                moveNext(range, chart.getHighestVisibleX(), startValue, endValue);
             }
         });
 
@@ -379,6 +397,7 @@ public class MainActivity extends AppCompatActivity {
                 .setAppPackageName("com.google.android.gms").build();
 
         DataReadRequest readRequest = new DataReadRequest.Builder()
+                .enableServerQueries()
                 .aggregate(ESTIMATED_STEP_DELTAS, DataType.AGGREGATE_STEP_COUNT_DELTA).bucketByTime(1, TimeUnit.HOURS)
                 .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS).build();
 
@@ -472,6 +491,7 @@ public class MainActivity extends AppCompatActivity {
         long year = (pos == 3) ? (long)value/12 + STARTYEAR : determineYear(days);
         long month = (pos == 3) ? (long)value : determineMonth(days);
         long dayOfMonth = (pos == 3) ? 1 : determineDayOfMonth(days, month + 12 * (year - STARTYEAR));
+
 
         String monthName = months[(int)month % months.length];
         String yearName = String.valueOf(year);
@@ -630,10 +650,44 @@ public class MainActivity extends AppCompatActivity {
     }
 
     // For translating graph
-    void movePrev(long range, float lowestValue){
-        chart.moveViewToX(lowestValue - range);
+    void movePrev(long range, float lowestValue, long startValue, long endValue){
+
+        if(lowestValue - range < startValue) {
+            chart.moveViewToX(startValue);
+            leftBtn.setBackgroundResource(R.drawable.left_arrow_disable);
+            leftBtn.setEnabled(false);
+        }
+        else {
+            if(lowestValue - range == startValue) {
+                leftBtn.setBackgroundResource(R.drawable.left_arrow_disable);
+                leftBtn.setEnabled(false);
+            }
+            chart.moveViewToX(lowestValue - range);
+        }
+
+        if(chart.getHighestVisibleX() + range > endValue) {
+            rightBtn.setBackgroundResource(R.drawable.right_arrow);
+            rightBtn.setEnabled(true);
+        }
     }
-    void moveNext(long range, float lowestValue){
-        chart.moveViewToX(lowestValue + range);
+    void moveNext(long range, float highestValue, long startValue, long endValue){
+        if(highestValue + range > endValue) {
+            chart.moveViewToX(endValue - range);
+            rightBtn.setBackgroundResource(R.drawable.right_arrow_disable);
+            rightBtn.setEnabled(false);
+        }
+        else {
+            if(highestValue + range == endValue) {
+                rightBtn.setBackgroundResource(R.drawable.right_arrow_disable);
+                rightBtn.setEnabled(false);
+            }
+            chart.moveViewToX(highestValue);
+        }
+
+        if(chart.getLowestVisibleX() - range < startValue)
+        {
+            leftBtn.setBackgroundResource(R.drawable.left_arrow);
+            leftBtn.setEnabled(true);
+        }
     }
 }
