@@ -31,6 +31,7 @@ import com.google.android.gms.fitness.Fitness;
 import com.google.android.gms.fitness.FitnessOptions;
 import com.google.android.gms.fitness.data.Bucket;
 import com.google.android.gms.fitness.data.DataPoint;
+import com.google.android.gms.fitness.data.DataSet;
 import com.google.android.gms.fitness.data.DataSource;
 import com.google.android.gms.fitness.data.DataType;
 import com.google.android.gms.fitness.data.Field;
@@ -65,9 +66,6 @@ public class MainActivity extends AppCompatActivity {
     Button rightBtn;
 
     private static final int REQUEST_OAUTH_REQUEST_CODE = 0x1001;
-    public static long startHour;
-    public static long startHourValue;
-    public static long startDay;
 
     BarChart chart;
     BarDataSet dataSet;
@@ -76,6 +74,12 @@ public class MainActivity extends AppCompatActivity {
     List<BarEntry> hours = new ArrayList<>();
     List<BarEntry> days = new ArrayList<>();
     List<BarEntry> years = new ArrayList<>();
+
+    long hourIt = 0;
+    long dayIt = 0;
+    long monthIt = 0;
+
+    boolean setFirst;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -98,13 +102,17 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onTabReselected(TabLayout.Tab tab) {
-                int position = tab.getPosition();
-                refreshGraph(position);
+/*                int position = tab.getPosition();
+                refreshGraph(position);*/
             }
         });
-        FitnessOptions fitnessOptions = FitnessOptions.builder().
-                                        addDataType(DataType.TYPE_STEP_COUNT_CUMULATIVE).
-                                        addDataType(DataType.TYPE_STEP_COUNT_DELTA).build();
+
+
+
+        FitnessOptions fitnessOptions = FitnessOptions.builder()
+                .addDataType(DataType.TYPE_STEP_COUNT_CUMULATIVE)
+                .addDataType(DataType.TYPE_STEP_COUNT_DELTA)
+                .build();
 
         if (!GoogleSignIn.hasPermissions(GoogleSignIn.getLastSignedInAccount(this), fitnessOptions)) {
             GoogleSignIn.requestPermissions(this, REQUEST_OAUTH_REQUEST_CODE,
@@ -112,44 +120,76 @@ public class MainActivity extends AppCompatActivity {
         } else {
             subscribe();
         }
-    }
 
-    public void subscribe(){
-        Fitness.getRecordingClient(this, GoogleSignIn.getLastSignedInAccount(this))
-                .listSubscriptions(DataType.TYPE_STEP_COUNT_CUMULATIVE)
-                .addOnSuccessListener(new OnSuccessListener<List<Subscription>>() {
-                    @Override
-                    public void onSuccess(List<Subscription> subscriptions) {
-                        for (Subscription sc : subscriptions) {
-                            DataType dt = sc.getDataType();
-                            readData();
-                            Log.i("Google Success", "Active subscription for data type: " + dt.getName());
-                        }
-                    }
-                });
-/*        Fitness.getRecordingClient(this, GoogleSignIn.getLastSignedInAccount(this))
-                .subscribe(DataType.TYPE_STEP_COUNT_CUMULATIVE).addOnCompleteListener(
-                        new OnCompleteListener<Void>() {
-                            @Override
-                            public void onComplete(@NonNull Task<Void> task) {
-                                if (task.isSuccessful()) {
-                                    Log.e("Google Success", "Successfully subscribed!");
-                                    readData();
-                                } else {
-                                    Log.e("Google Failed", "There was a problem subscribing.", task.getException());
-                                }
-                            }
-                        });*/
+
     }
 
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         if (resultCode == Activity.RESULT_OK) {
             if (requestCode == REQUEST_OAUTH_REQUEST_CODE) {
-                Log.e("ON ACTIVITY SUBSCRIBE", "CREATE");
                 subscribe();
             }
         }
+    }
+
+    public void subscribe(){
+        Fitness.getRecordingClient(this, GoogleSignIn.getLastSignedInAccount(this))
+                .subscribe(DataType.TYPE_STEP_COUNT_CUMULATIVE)
+                .addOnCompleteListener(
+                        new OnCompleteListener<Void>() {
+                            @Override
+                            public void onComplete(@NonNull Task<Void> task) {
+                                if (task.isSuccessful()) {
+                                    setFirst = false;
+
+                                    long totalTime = determineTotalMonth((currDay() - firstDay())/86400000);
+                                    Calendar cal = Calendar.getInstance();
+                                    long startTime = firstDay();
+                                    cal.setTimeInMillis(startTime);
+                                    cal.add(Calendar.MONTH, 1);
+                                    cal.add(Calendar.DAY_OF_YEAR, -1);
+                                    cal.set(Calendar.HOUR_OF_DAY, 23);
+                                    cal.set(Calendar.SECOND, 59);
+                                    cal.set(Calendar.MINUTE, 59);
+                                    long endTime = cal.getTimeInMillis();
+
+                                    for(int i = 0; i < totalTime + 1; ++i)
+                                    {
+                                        readData(startTime, endTime);
+                                        cal.add(Calendar.DAY_OF_YEAR, 1);
+                                        cal.set(Calendar.HOUR_OF_DAY, 0);
+                                        cal.set(Calendar.SECOND, 0);
+                                        cal.set(Calendar.MINUTE, 0);
+                                        startTime = cal.getTimeInMillis();
+                                        cal.add(Calendar.MONTH, 1);
+                                        cal.add(Calendar.DAY_OF_YEAR, -1);
+                                        cal.set(Calendar.HOUR_OF_DAY, 23);
+                                        cal.set(Calendar.SECOND, 59);
+                                        cal.set(Calendar.MINUTE, 59);
+                                        endTime = cal.getTimeInMillis();
+                                    }
+
+                                    // Set for loop to iterate through all months starting Jan 2016
+                                    /*
+                                        firstDay -> milliseconds
+                                        currDay -> milliseconds
+
+                                      Day - Begins at current hour, offset hour of day      (0:00)      - 0:00 Jan 1 2016   (0) 12:00 Sep 12 2018   (currHour)  0:00 Sep 12 2018    (currHour - currHour%24)
+                                      Week - Begins at current day, offset day of week      (Monday)    - Friday            (0) Wed                 (currDay)   Monday              (currDay - currDay%7)
+                                      Month - Begins at current day, offset day of month    (1st)       - 1                 (0) 12                  (currDay)   1                   (currDay - DayOfMonth)
+                                      Year - Begins at current month, offset month of year  (Jan)       - Jan 2016          (0) Sep 2018            (currMonth) Jan                 (currMonth - monthOfYear)
+
+                                      Things to get using hour value
+                                        -
+                                     */
+                                    //readData(); // Read data here only
+                                    Log.i("Success", "Successfully subscribed!");
+                                } else {
+                                    Log.w("Failed", "There was a problem subscribing.", task.getException());
+                                }
+                            }
+                        });
     }
 
     void refreshGraph(int pos){
@@ -157,46 +197,36 @@ public class MainActivity extends AppCompatActivity {
 
         switch (pos) {
             case 0:
-                drawGraph(pos, hours, 24,startHourValue - startHour, today * 24,  (today - 1) * 24);
+                drawGraph(pos, hours, 24, 0, today * 24,  (today - 1) * 24);
                 break;
             case 1:
-                long startOfWeek = startDay - (startDay % 7) + 3;
-                long latestWeek = (today - (today % 7) + 3);
-                drawGraph(pos, days, 7, startOfWeek, latestWeek, latestWeek);
+                long latestWeek = (today - today%7) + 7;
+                drawGraph(pos, days, 7, 0, latestWeek, today - (today%7));
                 break;
             case 2:
-                long startMYear = determineYear(startDay);
-                long startMonth = determineMonth(startDay);
-                long startDayOfMonth = determineDayOfMonth(startDay, startMonth + 12 * (startMYear - STARTYEAR));
-
-
                 long latestMYear = determineYear(today);
                 long latestMonth = determineMonth(today);
                 long lastDayOfLatestMonth = getDaysForMonth(latestMonth, latestMYear);
                 long latestDayOfMonth = determineDayOfMonth(today, latestMonth + 12 * (latestMYear - STARTYEAR));
 
-                drawGraph(pos, days, 31, startDay - startDayOfMonth, today - latestDayOfMonth + lastDayOfLatestMonth, today - latestDayOfMonth + lastDayOfLatestMonth + 15);
+                drawGraph(pos, days, 31, 0, today - latestDayOfMonth + lastDayOfLatestMonth, today - latestDayOfMonth + lastDayOfLatestMonth + 15);
                 break;
             case 3:
-                long yearOfStartDay = determineYear(startDay);
-                long monthOfStartDay = determineMonth(startDay);
-                long monthOfStartYear = (yearOfStartDay - STARTYEAR) * 12 + monthOfStartDay;
-                long startYear = monthOfStartYear - (monthOfStartYear % 12);
-
-
                 long yearOfLatestDay = determineYear(today);
                 long monthOfLatestDay = determineMonth(today);
                 long monthOfLatestYear = (yearOfLatestDay - STARTYEAR) * 12 + monthOfLatestDay;
                 long latestYear = monthOfLatestYear - (monthOfLatestYear % 12);
-                Log.e("STARTYEAR", Long.toString(startYear));
-                drawGraph(pos, years, 12, startYear, latestYear + 12, startYear);
+
+                drawGraph(pos, years, 12, 0, latestYear + 12, latestYear);
                 break;
         }
     }
     void drawGraph(int pos, List<BarEntry> datatype, final long range, final long startValue, final long endValue, long moveView){
         // Get data here
+        //moveView = 0;
         chart = findViewById(R.id.chart);
         dataSet = new BarDataSet(datatype, "Label");
+
         dataSet.setBarBorderColor(android.R.color.white);
         dataSet.setBarBorderWidth(1f);
         dataSet.setHighLightAlpha(0);
@@ -229,6 +259,7 @@ public class MainActivity extends AppCompatActivity {
 
             }
         });
+
         chart.setOnChartGestureListener(new OnChartGestureListener() {
             @Override
             public void onChartGestureStart(MotionEvent me, ChartTouchListener.ChartGesture lastPerformedGesture) {
@@ -252,7 +283,6 @@ public class MainActivity extends AppCompatActivity {
 
             @Override
             public void onChartSingleTapped(MotionEvent me) {
-
             }
 
             @Override
@@ -268,6 +298,14 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onChartTranslate(MotionEvent me, float dX, float dY) {
                 chart.highlightValues(null);
+
+                if(chart.getLowestVisibleX() < startValue)
+                    chart.moveViewToX(startValue);
+                if(chart.getHighestVisibleX() > endValue)
+                    chart.moveViewToX(endValue);
+
+                Log.e("Lowest Visible X", Float.toString(chart.getLowestVisibleX()));
+                Log.e("Highest Visible X", Float.toString(chart.getHighestVisibleX()));
             }
         });
 
@@ -277,7 +315,7 @@ public class MainActivity extends AppCompatActivity {
         xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
         xAxis.setGranularity(1f); // only intervals of 1 day
         xAxis.setLabelCount(7);
-        xAxis.setValueFormatter(xAxisFormatter);
+        //xAxis.setValueFormatter(xAxisFormatter);
         xAxis.setAxisMinimum(startValue);
         xAxis.setAxisMaximum(endValue);
         xAxis.setDrawGridLines(true);
@@ -304,14 +342,36 @@ public class MainActivity extends AppCompatActivity {
         chart.setMarker(marker);
 
         chart.fitScreen();
+        chart.notifyDataSetChanged();
         chart.invalidate();
         chart.setVisibleXRange(range, range); // Week 7, Month 30, Year 12,
 
         leftBtn = findViewById(R.id.leftBtn);
         rightBtn = findViewById(R.id.rightBtn);
 
-        if(startValue < chart.getLowestVisibleX())
+        Log.e("Lowest Visible X", Float.toString( chart.getLowestVisibleX()));
+        Log.e("START", Long.toString(startValue));
+        if( chart.getLowestVisibleX() <= startValue) {
+            leftBtn.setBackgroundResource(R.drawable.left_arrow_disable);
+            leftBtn.setEnabled(false);
+        }
+        else
+        {
             leftBtn.setBackgroundResource(R.drawable.left_arrow);
+            leftBtn.setEnabled(true);
+        }
+
+        Log.e("Highest Visible X", Float.toString(chart.getHighestVisibleX()));
+        Log.e("End", Long.toString(endValue));
+        if(chart.getHighestVisibleX() < endValue) {
+            rightBtn.setBackgroundResource(R.drawable.right_arrow);
+            rightBtn.setEnabled(true);
+        }
+        else
+        {
+            rightBtn.setBackgroundResource(R.drawable.right_arrow_disable);
+            rightBtn.setEnabled(false);
+        }
 
         leftBtn.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -386,19 +446,20 @@ public class MainActivity extends AppCompatActivity {
                 break;
         }
     }
-    private void readData(){
-        // Set dates for data
-        long endTime = currDay();
-        long startTime = firstDay();
-        printRange(startTime, endTime);
-        // Request data
+
+    private void readData(final long startTime, final long endTime) // Read Monthly data
+    {
         DataSource ESTIMATED_STEP_DELTAS = new DataSource.Builder().setDataType(DataType.TYPE_STEP_COUNT_DELTA)
                 .setType(DataSource.TYPE_DERIVED).setStreamName("estimated_steps")
                 .setAppPackageName("com.google.android.gms").build();
 
         DataReadRequest readRequest = new DataReadRequest.Builder()
-                .enableServerQueries()
-                .aggregate(ESTIMATED_STEP_DELTAS, DataType.AGGREGATE_STEP_COUNT_DELTA).bucketByTime(1, TimeUnit.HOURS)
+                //.enableServerQueries()
+                .aggregate(ESTIMATED_STEP_DELTAS, DataType.AGGREGATE_STEP_COUNT_DELTA)
+                .aggregate(DataType.TYPE_DISTANCE_DELTA, DataType.AGGREGATE_DISTANCE_DELTA)
+                .aggregate(DataType.TYPE_CALORIES_EXPENDED, DataType.AGGREGATE_CALORIES_EXPENDED)
+                .aggregate(DataType.TYPE_ACTIVITY_SEGMENT, DataType.AGGREGATE_ACTIVITY_SUMMARY)
+                .bucketByTime(1, TimeUnit.HOURS)
                 .setTimeRange(startTime, endTime, TimeUnit.MILLISECONDS).build();
 
 
@@ -408,81 +469,51 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onSuccess(DataReadResponse dataReadResponse) {
                         if (dataReadResponse.getBuckets().size() > 0) {
-                            Log.e("Count", "Number of returned buckets of DataSets is: " + dataReadResponse.getBuckets().size());
-
-                            int hourIterator = 0;
+                            printRange(startTime, endTime);
                             long dayAcc = 0;
                             long yearAcc = 0;
-                            long currMonth = 1;
-
-                            boolean setFirst = false;
+                            Log.e("Count", "Number of returned buckets of DataSets is: " + dataReadResponse.getBuckets().size());
                             for (Bucket bucket : dataReadResponse.getBuckets()) {
-                                if(bucket.getDataSets().size() > 0
+                                if (bucket.getDataSets().size() > 0
                                         && bucket.getDataSets().get(0).getDataPoints().size() > 0
                                         && bucket.getDataSets().get(0).getDataPoints().get(0).getDataType().getFields().size() > 0) {
                                     DataPoint dp = bucket.getDataSets().get(0).getDataPoints().get(0);
                                     Field field = dp.getDataType().getFields().get(0);
                                     int value = dp.getValue(field).asInt();
 
-                                    if (!setFirst)
-                                    {
-                                        long startTime = dp.getStartTime(TimeUnit.MILLISECONDS) - firstDay();
-                                        long totalDays = startTime/86400000;
-                                        startHour = (startTime / 3600000) % 24;
-                                        startHourValue = hourIterator;
-                                        startDay = totalDays + 1;
-                                        setFirst = true;
-                                    }
-                                    Log.e("HORUS",Integer.toString(hourIterator));
-                                    hours.add(new BarEntry(hourIterator, value));
+                                    Log.e("TIMEEEEE", Long.toString(hourIt));
+                                    hours.add(new BarEntry(hourIt, value));
+
                                     dayAcc += value;
                                     yearAcc += value;
 
                                     printRange(dp.getStartTime(TimeUnit.MILLISECONDS), dp.getEndTime(TimeUnit.MILLISECONDS));
                                     Log.e("Value    ", "" + dp.getValue(field));
                                 }
-                                // For each day
-                                if(hourIterator % 24 == 0)
+                                if(hourIt % 24 == 0)
                                 {
-                                    int daysCount = (hourIterator/24);
-                                    days.add(new BarEntry(daysCount, dayAcc));
+                                    days.add(new BarEntry(dayIt, dayAcc));
                                     dayAcc = 0;
-
-                                    long currYear = determineYear(daysCount);
-                                    long nextMonth = determineMonth(daysCount + 1);
-                                    if(nextMonth != currMonth)
-                                    {
-                                        long monthOfYear = (currYear - STARTYEAR) * 12 + currMonth;
-                                        years.add(new BarEntry(monthOfYear, yearAcc));
-                                        yearAcc = 0;
-                                        currMonth = nextMonth;
-                                    }
+                                    ++dayIt;
                                 }
-                                ++hourIterator;
+                                ++hourIt;
                             }
-
-                            // Remaining values
-                            if (dayAcc != 0)
+                            if(dayAcc != 0)
                             {
-                                int daysCount = (hourIterator/24);
-                                days.add(new BarEntry(daysCount, dayAcc));
+                                days.add(new BarEntry(dayIt, dayAcc));
+                                ++dayIt;
                             }
-                            if (yearAcc != 0)
-                            {
-                                long remainingYear = determineYear(hourIterator/24 + 1);
-                                long remainingMonth = determineMonth(hourIterator/24 + 1);
-                                long monthOfYear = (remainingYear - STARTYEAR) * 12 + remainingMonth;
-                                years.add(new BarEntry(monthOfYear, yearAcc));
-                            }
+                            years.add(new BarEntry(monthIt, yearAcc));
+                            ++monthIt;
+                            refreshGraph(0);
                         }
-                        refreshGraph(0);
                     }
                 }).addOnFailureListener(new OnFailureListener() {
-                    @Override
-                    public void onFailure(@NonNull Exception e) {
-                        Log.e("PRINT    ", "There was a problem reading the data.", e);
-                    }
-                });
+            @Override
+            public void onFailure(@NonNull Exception e) {
+                Log.e("PRINT    ", "There was a problem reading the data.", e);
+            }
+        });
     }
 
     public static String getDateStrFromGraphValue(int pos, float value) {
@@ -501,7 +532,7 @@ public class MainActivity extends AppCompatActivity {
         switch (pos)
         {
             case 0:
-                int hours = (int)((value - startHourValue + startHour) % 24);
+                int hours = (int)((value) % 24);
                 wholeDate = hours + ":00 to " + (hours + 1) + ":00";
                 break;
             case 1:
@@ -588,6 +619,27 @@ public class MainActivity extends AppCompatActivity {
 
         return Math.max(month, 0);
     }
+    public static long determineTotalMonth(long dayOfYear) {
+
+        int month = -1;
+        int monthGet =  -1;
+        int days = 0;
+
+        while (days < dayOfYear) {
+            month = month + 1;
+            monthGet = monthGet + 1;
+
+            if (monthGet >= 12)
+                monthGet = 0;
+
+            long year = determineYear(days);
+
+            days += getDaysForMonth(monthGet, year);
+        }
+
+        return Math.max(month, 0);
+    }
+
     public static long determineDayOfMonth(long days, long month) {
         int count = 0;
         int daysForMonths = 0;

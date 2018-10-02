@@ -23,8 +23,8 @@ public class CustomMarkerView extends MarkerView {
         super(context, layoutResource);
         this.pos = pos;
         // this markerview only displays a textview
-        dateTV = (TextView) findViewById(R.id.date);
-        distTV = (TextView) findViewById(R.id.dist);
+        dateTV = findViewById(R.id.date);
+        distTV = findViewById(R.id.dist);
     }
 
     @Override
