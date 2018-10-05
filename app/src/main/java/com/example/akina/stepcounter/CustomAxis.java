@@ -11,7 +11,7 @@ public class CustomAxis implements IAxisValueFormatter {
             "12P", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"    };
 
     protected String[] mWeeks = new String[]{
-            "Thu", "Fri", "Sat", "Sun", "Mon", "Tue", "Wed"
+            "Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"
     };
 
     private BarLineChartBase<?> chart;
@@ -36,7 +36,7 @@ public class CustomAxis implements IAxisValueFormatter {
                 formatted = mWeeks[(int)days % mWeeks.length];
                 break;
             case 2:
-                formatted = Long.toString(dayOfMonth);
+                formatted = Long.toString(dayOfMonth + 1);
                 break;
             case 3:
                 formatted = MainActivity.months[(int)days % MainActivity.months.length];
