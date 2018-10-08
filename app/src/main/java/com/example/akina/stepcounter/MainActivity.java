@@ -44,6 +44,7 @@ import com.google.android.gms.tasks.Task;
 
 import java.sql.Time;
 import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
@@ -71,10 +72,14 @@ public class MainActivity extends AppCompatActivity {
     BarDataSet dataSet;
 
     List<BarEntry> entries = new ArrayList<>();
+    HourEntry total = new HourEntry();
     List<HourEntry> totalHrs = new ArrayList<>();
 
     long today;
-    long currHour, currWeek, currMonth, currYear;
+    long currHour;
+    static long currWeek;
+    long currMonth;
+    long currYear;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -239,8 +244,8 @@ public class MainActivity extends AppCompatActivity {
         leftAxis.setDrawGridLines(false);
         leftAxis.setDrawAxisLine(false);
 
-        //CustomMarkerView marker = new CustomMarkerView(this, R.layout.marker, pos);
-        //chart.setMarker(marker);
+        CustomMarkerView marker = new CustomMarkerView(this, R.layout.marker, pos);
+        chart.setMarker(marker);
 
         chart.fitScreen();
         chart.notifyDataSetChanged();
@@ -327,7 +332,9 @@ public class MainActivity extends AppCompatActivity {
                     public void onSuccess(DataReadResponse dataReadResponse) {
                         if (dataReadResponse.getBuckets().size() > 0) {
                             entries.clear();
+                            total.clear();
                             int i = 0;
+                            long yearI = 0;
                             int dayAcc = 0;
 
                             Log.e("NUM", "Number of returned buckets of DataSets is: " + dataReadResponse.getBuckets().size());
@@ -335,7 +342,11 @@ public class MainActivity extends AppCompatActivity {
                                 List<DataSet> dataSets = bucket.getDataSets();
 
                                 Log.e("NUM", "Number of returned buckets of DataSets is: " + dataSets.size());
+                                long s = 0;
+                                float d = 0;
+                                float c = 0;
 
+                                List<DataPoint> a = new ArrayList<>();
                                 for (int dataNo = 0; dataNo < dataSets.size(); ++dataNo)
                                 {
                                     DataSet dataSet = dataSets.get(dataNo);
@@ -343,37 +354,65 @@ public class MainActivity extends AppCompatActivity {
                                     if(dataSet.getDataPoints().size() > 0)
                                     {
                                         DataPoint dp = dataSet.getDataPoints().get(0);
+                                        Log.e("NUM", "Number of returned buckets of DataSets is: " +  dp.getDataType().getFields().size());
                                         Field field = dp.getDataType().getFields().get(0);
+
 
                                         switch (dataNo)
                                         {
                                             case 0:
                                                 if(pos == 3)
+                                                {
+                                                    yearI = dp.getEndTime(TimeUnit.MILLISECONDS);
                                                     dayAcc += dp.getValue(field).asInt();
+
+                                                    Calendar today = Calendar.getInstance();
+                                                    today.setTimeInMillis(dp.getStartTime(TimeUnit.MILLISECONDS));
+
+                                                    Calendar tomorrow = Calendar.getInstance();
+                                                    tomorrow.setTimeInMillis(today.getTimeInMillis());
+                                                    tomorrow.add(Calendar.DAY_OF_YEAR, 1);
+
+                                                    if(today.get(Calendar.MONTH) != tomorrow.get(Calendar.MONTH))
+                                                    {
+                                                        entries.add(new BarEntry(today.get(Calendar.MONTH), dayAcc));
+                                                        dayAcc = 0;
+                                                    }
+                                                }
                                                 else
-                                                    entries.add(new BarEntry(i, dp.getValue(field).asInt()));
+                                                    if(dp.getValue(field).getFormat() == 1)
+                                                        entries.add(new BarEntry(i, dp.getValue(field).asInt()));
+
+                                                if(dp.getValue(field).getFormat() == 1)
+                                                    s = dp.getValue(field).asInt();
                                                 break;
                                             case 1:
-                                                //entries.add(new BarEntry(i, dp.getValue(field).asInt()));
+                                                if(dp.getValue(field).getFormat() == 2)
+                                                    d = dp.getValue(field).asFloat();
                                                 break;
 
                                             case 2:
-                                                //entries.add(new BarEntry(i, dp.getValue(field).asInt()));
+                                                if(dp.getValue(field).getFormat() == 2)
+                                                    c = dp.getValue(field).asFloat();
                                                 break;
 
                                             case 3:
-                                                //for (DataPoint dp : dataSet.getDataPoints()) {
-                                                //    for (Field field : dp.getDataType().getFields()) {
-                                                //        entries.add(new BarEntry(i, dp.getValue(field).asInt()));
-                                                //    }
-                                                //}
+                                                //if(dp.getValue(field).getFormat() == 1)
+                                                    a = dataSet.getDataPoints();
                                                 break;
                                         }
                                     }
                                 }
-
+                                total.add(s, d, c, a);
                                 ++i;
                             }
+                            if(dayAcc != 0)
+                            {
+                                Calendar today = Calendar.getInstance();
+                                today.setTimeInMillis(yearI);
+                                entries.add(new BarEntry(today.get(Calendar.MONTH), dayAcc));
+                            }
+
                         }
                         drawGraph(pos);
                     }
@@ -386,74 +425,28 @@ public class MainActivity extends AppCompatActivity {
     }
 
     public static String getDateStrFromGraphValue(int pos, float value) {
-
-        long days = (pos == 0) ? (long)value/24 : (long)value;
-        long year = (pos == 3) ? (long)value/12 + STARTYEAR : determineYear(days);
-        long month = (pos == 3) ? (long)value : determineMonth(days);
-        long dayOfMonth = (pos == 3) ? 1 : determineDayOfMonth(days, month + 12 * (year - STARTYEAR));
-
-
-        String monthName = months[(int)month % months.length];
-        String yearName = String.valueOf(year);
-
         String wholeDate = "";
 
-        switch (pos)
+        switch(pos)
         {
             case 0:
-                int hours = (int)((value) % 24);
-                wholeDate = hours + ":00 to " + (hours + 1) + ":00";
+                wholeDate = (int)value + ":00 to " + (int)(value + 1) + ":00";
                 break;
             case 1:
-                wholeDate = monthName + " " + dayOfMonth + " " + yearName;
+                Calendar cal = Calendar.getInstance();
+                cal.setTimeInMillis(currWeek);
+                cal.add(Calendar.DAY_OF_WEEK, (int)value);
+
+                DateFormat dateFormat = getDateInstance();
+                wholeDate = dateFormat.format(cal.getTimeInMillis());
                 break;
             case 2:
-                wholeDate = monthName + " " + dayOfMonth + " " + yearName;
                 break;
             case 3:
-                wholeDate = monthName + " " + yearName;
+                break;
         }
-        return dayOfMonth <= 0 ? "" : wholeDate;
+        return wholeDate;
     }
-/*
-    public String getDateStr(int position, float value) {
-
-        long days, year, month, dayOfMonth;
-        String monthName, yearName;
-
-        switch (position)
-        {
-            case 0:
-                days = (int) (value/24) + 1;
-                year = determineYear(days);
-                month = determineMonth(days);
-                monthName = months[(int)month % months.length];
-                yearName = String.valueOf(year);
-                dayOfMonth = determineDayOfMonth(days, month + 12 * (year - STARTYEAR));
-                return dayOfMonth <= 0 ? "" : monthName + " " + dayOfMonth + " " + yearName;
-            case 1:
-
-                days = (int) value;
-                year = determineYear(days);
-                month = determineMonth(days);
-                monthName = months[(int)month % months.length];
-                yearName = String.valueOf(year);
-                dayOfMonth = determineDayOfMonth(days, month + 12 * (year - STARTYEAR));
-                return dayOfMonth <= 0 ? "" : monthName + " " + dayOfMonth + " " + yearName;
-            case 2:
-                days = (int) value;
-                year = determineYear(days);
-                month = determineMonth(days);
-                monthName = months[(int)month % months.length];
-                yearName = String.valueOf(year);
-                dayOfMonth = determineDayOfMonth(days, month + 12 * (year - STARTYEAR));
-                return dayOfMonth <= 0 ? "" : monthName + " " + yearName;
-            case 3:
-                return Integer.toString((int)(value/12) + STARTYEAR);
-        }
-        return "";
-    }
-*/
 
     // Functions used by multiple files
     public static long getDaysForMonth(long month, long year) {
@@ -490,28 +483,6 @@ public class MainActivity extends AppCompatActivity {
 
         return Math.max(month, 0);
     }
-/*
-    public static long determineTotalMonth(long dayOfYear) {
-
-        int month = -1;
-        int monthGet =  -1;
-        int days = 0;
-
-        while (days < dayOfYear) {
-            month = month + 1;
-            monthGet = monthGet + 1;
-
-            if (monthGet >= 12)
-                monthGet = 0;
-
-            long year = determineYear(days);
-
-            days += getDaysForMonth(monthGet, year);
-        }
-
-        return Math.max(month, 0);
-    }
-*/
 
     public static long determineDayOfMonth(long days, long month) {
         int count = 0;
@@ -543,28 +514,6 @@ public class MainActivity extends AppCompatActivity {
 
     }
 
-    // Used for Google FIT data
-/*    private long currDay(){
-        Calendar cal = Calendar.getInstance();
-        Date currTime = new Date();
-
-        cal.setTime(currTime);
-        cal.set(Calendar.HOUR_OF_DAY, 23);
-        cal.set(Calendar.SECOND, 59);
-        cal.set(Calendar.MINUTE, 59);
-        return cal.getTimeInMillis();
-    }
-    private long firstDay(){
-        Calendar cal = Calendar.getInstance();
-        cal.set(Calendar.HOUR_OF_DAY, 0);
-        cal.set(Calendar.SECOND, 0);
-        cal.set(Calendar.MINUTE, 0);
-        cal.set(Calendar.YEAR, STARTYEAR);
-        cal.set(Calendar.MONTH, Calendar.JANUARY);
-        cal.set(Calendar.DAY_OF_MONTH, 1);
-        return cal.getTimeInMillis();
-    }*/
-
     // For Debugging
     private void printRange(long start, long end) {
         DateFormat timeFormat = getTimeInstance();
@@ -589,21 +538,21 @@ public class MainActivity extends AppCompatActivity {
                 cal = Calendar.getInstance();
                 cal.setTimeInMillis(currWeek);
                 cal.add(Calendar.DAY_OF_YEAR, -7);
-                currHour = cal.getTimeInMillis();
+                currWeek = cal.getTimeInMillis();
                 readData(pos);
                 break;
             case 2:
                 cal = Calendar.getInstance();
                 cal.setTimeInMillis(currMonth);
                 cal.add(Calendar.MONTH, -1);
-                currHour = cal.getTimeInMillis();
+                currMonth = cal.getTimeInMillis();
                 readData(pos);
                 break;
             case 3:
                 cal = Calendar.getInstance();
                 cal.setTimeInMillis(currYear);
                 cal.add(Calendar.MONTH, -12);
-                currHour = cal.getTimeInMillis();
+                currYear = cal.getTimeInMillis();
                 readData(pos);
                 break;
         }
@@ -642,23 +591,6 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    /*long getHourIndex(long timeInMillis) {
-        long hour = (timeInMillis - firstDay())/3600000;
-        //Log.e("Hourtime", Long.toString(hour));
-        return hour;
-    }
-    long getDayIndex(long timeInMillis) {
-        long day = getHourIndex(timeInMillis)/24;
-        //Log.e("Dayyyyy", Long.toString(day));
-        return day;
-    }
-    long getMonthIndex(long timeInMillis) {
-        long month = determineTotalMonth( (timeInMillis - firstDay())/86400000);
-        //Log.e("Monthssss", Long.toString(month));
-        return month;
-    }*/
-
-
     void updateText(int pos) {
         DateFormat dateFormat = getDateInstance();
         TextView topText = findViewById(R.id.currTimeText);
@@ -674,19 +606,30 @@ public class MainActivity extends AppCompatActivity {
                 dateText.setText(dateFormat.format(currHour));
                 break;
             case 1:
-                topText.setText(dateFormat.format(currWeek));
-                if(today == currHour)
-                    topText.setText("Today");
+                Calendar cal = Calendar.getInstance();
+                cal.setTimeInMillis(currWeek);
+                cal.add(Calendar.DAY_OF_WEEK, 7);
+                topText.setText(dateFormat.format(currWeek) + " - "+ dateFormat.format(cal.getTimeInMillis()));
 
-                dateText.setText(dateFormat.format(currHour));
+                dateText.setText(dateFormat.format(currWeek) + " - "+ dateFormat.format(cal.getTimeInMillis()));
+                break;
+            case 2:
+                SimpleDateFormat simpleDateformat = new SimpleDateFormat("MMMM");
+                topText.setText(simpleDateformat.format(currMonth));
+
+                dateText.setText(simpleDateformat.format(currMonth));
                 break;
 
         }
 
         TextView stepText = findViewById(R.id.data_val);
+        stepText.setText(Long.toString(total.steps) + " steps");
         TextView calText = findViewById(R.id.cal_val);
+        calText.setText(Float.toString(total.calories) + " kcal");
         TextView activeText = findViewById(R.id.active_val);
+        activeText.setText(Long.toString((total.activeTime / 60000)) + " min");
         TextView distText = findViewById(R.id.dist_val);
+        distText.setText(Float.toString(total.distance / 1000) + " km");
 
         switch(pos)
         {
