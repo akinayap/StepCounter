@@ -84,26 +84,26 @@
 
     <Button
         android:id="@+id/rightBtn"
-        android:layout_width="15dp"
-        android:layout_height="20dp"
+        android:layout_width="141dp"
+        android:layout_height="22dp"
         android:layout_marginTop="8dp"
         android:layout_marginEnd="16dp"
         android:layout_marginRight="16dp"
         android:layout_marginBottom="8dp"
-        android:background="@drawable/right_arrow"
+        android:background="@android:drawable/button_onoff_indicator_off"
         app:layout_constraintBottom_toTopOf="@+id/chart"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tabs" />
 
     <Button
         android:id="@+id/leftBtn"
-        android:layout_width="15dp"
-        android:layout_height="20dp"
+        android:layout_width="145dp"
+        android:layout_height="25dp"
         android:layout_marginStart="16dp"
         android:layout_marginLeft="16dp"
         android:layout_marginTop="8dp"
         android:layout_marginBottom="8dp"
-        android:background="@drawable/left_arrow"
+        android:background="@android:drawable/button_onoff_indicator_off"
         app:layout_constraintBottom_toTopOf="@+id/chart"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tabs" />

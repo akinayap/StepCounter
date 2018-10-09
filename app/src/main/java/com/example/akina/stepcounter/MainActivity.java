@@ -78,8 +78,8 @@ public class MainActivity extends AppCompatActivity {
     long today;
     long currHour;
     static long currWeek;
-    long currMonth;
-    long currYear;
+    static long currMonth;
+    static long currYear;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -145,7 +145,6 @@ public class MainActivity extends AppCompatActivity {
                             }
                         });
     }
-
     void initDays(){
         Calendar cal = Calendar.getInstance();
         Date currTime = new Date();
@@ -254,6 +253,36 @@ public class MainActivity extends AppCompatActivity {
         leftBtn = findViewById(R.id.leftBtn);
         rightBtn = findViewById(R.id.rightBtn);
 
+        chart.setOnChartValueSelectedListener(new OnChartValueSelectedListener() {
+            @Override
+            public void onValueSelected(Entry e, Highlight h) {
+                Log.e("SELECTED ", Integer.toString(totalHrs.size()));
+
+
+                int i = (int)e.getX();
+                TextView stepText = findViewById(R.id.data_val);
+                stepText.setText(Long.toString(totalHrs.get(i).steps) + " steps");
+                TextView calText = findViewById(R.id.cal_val);
+                calText.setText(Float.toString(totalHrs.get(i).calories) + " kcal");
+                TextView activeText = findViewById(R.id.active_val);
+                activeText.setText(Long.toString((totalHrs.get(i).activeTime / 60000)) + " min");
+                TextView distText = findViewById(R.id.dist_val);
+                distText.setText(Float.toString(totalHrs.get(i).distance / 1000) + " km");
+            }
+
+            @Override
+            public void onNothingSelected() {
+                TextView stepText = findViewById(R.id.data_val);
+                stepText.setText(Long.toString(total.steps) + " steps");
+                TextView calText = findViewById(R.id.cal_val);
+                calText.setText(Float.toString(total.calories) + " kcal");
+                TextView activeText = findViewById(R.id.active_val);
+                activeText.setText(Long.toString((total.activeTime / 60000)) + " min");
+                TextView distText = findViewById(R.id.dist_val);
+                distText.setText(Float.toString(total.distance / 1000) + " km");
+            }
+        });
+
         leftBtn.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
@@ -310,7 +339,6 @@ public class MainActivity extends AppCompatActivity {
                 endTime = cal.getTimeInMillis();
                 break;
         }
-        printRange(startTime, endTime);
 
         DataSource ESTIMATED_STEP_DELTAS = new DataSource.Builder().setDataType(DataType.TYPE_STEP_COUNT_DELTA)
                 .setType(DataSource.TYPE_DERIVED).setStreamName("estimated_steps")
@@ -331,22 +359,25 @@ public class MainActivity extends AppCompatActivity {
                     @Override
                     public void onSuccess(DataReadResponse dataReadResponse) {
                         if (dataReadResponse.getBuckets().size() > 0) {
+                            totalHrs.clear();
                             entries.clear();
                             total.clear();
                             int i = 0;
                             long yearI = 0;
                             int dayAcc = 0;
+                            boolean lastDayOfMonth = false;
 
-                            Log.e("NUM", "Number of returned buckets of DataSets is: " + dataReadResponse.getBuckets().size());
+
                             for (Bucket bucket : dataReadResponse.getBuckets()) {
                                 List<DataSet> dataSets = bucket.getDataSets();
 
-                                Log.e("NUM", "Number of returned buckets of DataSets is: " + dataSets.size());
                                 long s = 0;
                                 float d = 0;
                                 float c = 0;
-
                                 List<DataPoint> a = new ArrayList<>();
+
+                                HourEntry dayTotal = new HourEntry();
+
                                 for (int dataNo = 0; dataNo < dataSets.size(); ++dataNo)
                                 {
                                     DataSet dataSet = dataSets.get(dataNo);
@@ -354,9 +385,7 @@ public class MainActivity extends AppCompatActivity {
                                     if(dataSet.getDataPoints().size() > 0)
                                     {
                                         DataPoint dp = dataSet.getDataPoints().get(0);
-                                        Log.e("NUM", "Number of returned buckets of DataSets is: " +  dp.getDataType().getFields().size());
                                         Field field = dp.getDataType().getFields().get(0);
-
 
                                         switch (dataNo)
                                         {
@@ -375,6 +404,7 @@ public class MainActivity extends AppCompatActivity {
 
                                                     if(today.get(Calendar.MONTH) != tomorrow.get(Calendar.MONTH))
                                                     {
+                                                        lastDayOfMonth = true;
                                                         entries.add(new BarEntry(today.get(Calendar.MONTH), dayAcc));
                                                         dayAcc = 0;
                                                     }
@@ -403,6 +433,22 @@ public class MainActivity extends AppCompatActivity {
                                         }
                                     }
                                 }
+
+                                if(pos == 3)
+                                {
+                                    dayTotal.add(s, d, c, a);
+                                    if(lastDayOfMonth)
+                                    {
+                                        totalHrs.add(dayTotal);
+                                        dayTotal.clear();
+                                        lastDayOfMonth = false;
+                                    }
+                                }
+                                else
+                                {
+                                    totalHrs.add(new HourEntry(s, d, c, a));
+                                }
+
                                 total.add(s, d, c, a);
                                 ++i;
                             }
@@ -441,8 +487,20 @@ public class MainActivity extends AppCompatActivity {
                 wholeDate = dateFormat.format(cal.getTimeInMillis());
                 break;
             case 2:
+                cal = Calendar.getInstance();
+                cal.setTimeInMillis(currMonth);
+                cal.add(Calendar.DAY_OF_MONTH, (int)value);
+
+                SimpleDateFormat simpleDateformat = new SimpleDateFormat("dd MMM");
+                wholeDate = simpleDateformat.format(cal.getTimeInMillis());
                 break;
             case 3:
+                cal = Calendar.getInstance();
+                cal.setTimeInMillis(currYear);
+                cal.add(Calendar.MONTH, (int)value);
+
+                simpleDateformat = new SimpleDateFormat("MMM YYYY");
+                wholeDate = simpleDateformat.format(cal.getTimeInMillis());
                 break;
         }
         return wholeDate;
@@ -565,30 +623,27 @@ public class MainActivity extends AppCompatActivity {
                 cal.setTimeInMillis(currHour);
                 cal.add(Calendar.DAY_OF_YEAR, 1);
                 currHour = cal.getTimeInMillis();
-                readData(pos);
                 break;
             case 1:
                 cal = Calendar.getInstance();
                 cal.setTimeInMillis(currWeek);
                 cal.add(Calendar.DAY_OF_YEAR, 7);
-                currHour = cal.getTimeInMillis();
-                readData(pos);
+                currWeek = cal.getTimeInMillis();
                 break;
             case 2:
                 cal = Calendar.getInstance();
                 cal.setTimeInMillis(currMonth);
                 cal.add(Calendar.MONTH, 1);
-                currHour = cal.getTimeInMillis();
-                readData(pos);
+                currMonth = cal.getTimeInMillis();
                 break;
             case 3:
                 cal = Calendar.getInstance();
                 cal.setTimeInMillis(currYear);
                 cal.add(Calendar.MONTH, 12);
-                currHour = cal.getTimeInMillis();
-                readData(pos);
+                currYear = cal.getTimeInMillis();
                 break;
         }
+        readData(pos);
     }
 
     void updateText(int pos) {
@@ -619,7 +674,11 @@ public class MainActivity extends AppCompatActivity {
 
                 dateText.setText(simpleDateformat.format(currMonth));
                 break;
-
+            case 3:
+                cal = Calendar.getInstance();
+                cal.setTimeInMillis(currYear);
+                topText.setText(Integer.toString(cal.get(Calendar.YEAR)));
+                dateText.setText(Integer.toString(cal.get(Calendar.YEAR)));
         }
 
         TextView stepText = findViewById(R.id.data_val);
@@ -631,23 +690,6 @@ public class MainActivity extends AppCompatActivity {
         TextView distText = findViewById(R.id.dist_val);
         distText.setText(Float.toString(total.distance / 1000) + " km");
 
-        switch(pos)
-        {
-            case 0:
-                //float startVal = chart.getLowestVisibleX();
-                //topText.setText(getDateStr(pos, startVal));
-                //dateText.setText(getDateStr(pos, startVal));
-                //stepText.setText(Long.toString(allHours.get(startVal).steps));
-                //calText.setText(Float.toString(allHours.get(startVal).calories));
-                //distText.setText(Float.toString(allHours.get(startVal).distance));
-                break;
-            case 1:
-                break;
-            case 2:
-                break;
-            case 3:
-                break;
-        }
     };
 
 }

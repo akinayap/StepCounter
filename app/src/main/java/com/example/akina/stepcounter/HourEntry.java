@@ -19,6 +19,19 @@ class HourEntry {
         activeTime = 0;
     }
 
+    HourEntry(long s, float d, float c, List<DataPoint>a)
+    {
+        steps = s;
+        distance = d;
+        calories = c;
+        activeTime = 0;
+        for (DataPoint dp : a) {
+            for (Field field : dp.getDataType().getFields()) {
+                activeTime += dp.getValue(field).asInt();
+            }
+        }
+    }
+
     void add(long s, float d, float c, List<DataPoint>a)
     {
         steps += s;
