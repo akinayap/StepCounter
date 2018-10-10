@@ -11,7 +11,9 @@ import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
+import android.widget.CalendarView;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import com.github.mikephil.charting.charts.BarChart;
 import com.github.mikephil.charting.components.LimitLine;
@@ -63,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
             "Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
     };
 
+    CalendarView calView;
     Button leftBtn, rightBtn;
 
     private static final int REQUEST_OAUTH_REQUEST_CODE = 0x1001;
@@ -75,16 +78,49 @@ public class MainActivity extends AppCompatActivity {
     HourEntry total = new HourEntry();
     List<HourEntry> totalHrs = new ArrayList<>();
 
+    int currPos;
+
     long today;
     long currHour;
     static long currWeek;
     static long currMonth;
     static long currYear;
 
+
+    DateFormat dateFormat;
+    TextView topText, dateText, stepText, calText, activeText, distText;
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        dateFormat = getDateInstance();
+        topText = findViewById(R.id.currTimeText);
+        dateText = findViewById(R.id.date_indicator);
+
+        stepText = findViewById(R.id.data_val);
+        calText = findViewById(R.id.cal_val);
+        activeText = findViewById(R.id.active_val);
+        distText = findViewById(R.id.dist_val);
+        calView = findViewById(R.id.calendarView);
+        calView.setVisibility(CalendarView.GONE);
+
+        calView.setOnDateChangeListener(new CalendarView.OnDateChangeListener() {
+            @Override
+            public void onSelectedDayChange(CalendarView view, int year, int month, int dayOfMonth) {
+                // display the selected date by using a toast
+                //Toast.makeText(getApplicationContext(), dayOfMonth + "/" + month + "/" + year, Toast.LENGTH_LONG).show();
+
+                Calendar cal = Calendar.getInstance();
+                cal.set(year, month, dayOfMonth, 0,0,0);
+                long changeDay = cal.getTimeInMillis();
+                setCurrDays(changeDay);
+                readData(currPos);
+                calView.setVisibility(CalendarView.GONE);
+            }
+        });
 
         initDays();
 
@@ -93,7 +129,19 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onTabSelected(TabLayout.Tab tab) {
                 int pos = tab.getPosition();
+                currPos = pos;
                 readData(pos);
+
+                topText.setText(dateFormat.format(currHour));
+                if(today == currHour)
+                    topText.setText("Today");
+
+                dateText.setText(dateFormat.format(currHour));
+
+                chart.highlightValue(null);
+                topText.setVisibility(View.VISIBLE);
+                rightBtn.setVisibility(View.VISIBLE);
+                leftBtn.setVisibility(View.VISIBLE);
             }
             @Override
             public void onTabUnselected(TabLayout.Tab tab) {
@@ -145,6 +193,7 @@ public class MainActivity extends AppCompatActivity {
                             }
                         });
     }
+
     void initDays(){
         Calendar cal = Calendar.getInstance();
         Date currTime = new Date();
@@ -163,6 +212,32 @@ public class MainActivity extends AppCompatActivity {
 
         // Set Month
         cal.setTime(currTime);
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MINUTE, 0);
+        cal.set(Calendar.DAY_OF_MONTH, 1);
+        currMonth = cal.getTimeInMillis();
+
+        // Set Year
+        cal.set(Calendar.MONTH, 0);
+        currYear = cal.getTimeInMillis();
+    }
+    void setCurrDays(long changeDay){
+        Calendar cal = Calendar.getInstance();
+        cal.setTimeInMillis(changeDay);
+        // Set Hour
+        cal.set(Calendar.HOUR_OF_DAY, 0);
+        cal.set(Calendar.SECOND, 0);
+        cal.set(Calendar.MINUTE, 0);
+        currHour = cal.getTimeInMillis();
+        today = currHour;
+
+        // Set Week
+        cal.add(Calendar.DAY_OF_WEEK, -cal.get(Calendar.DAY_OF_WEEK) + 1);
+        currWeek = cal.getTimeInMillis();
+
+        // Set Month
+        cal.setTimeInMillis(changeDay);
         cal.set(Calendar.HOUR_OF_DAY, 0);
         cal.set(Calendar.SECOND, 0);
         cal.set(Calendar.MINUTE, 0);
@@ -258,28 +333,27 @@ public class MainActivity extends AppCompatActivity {
             public void onValueSelected(Entry e, Highlight h) {
                 Log.e("SELECTED ", Integer.toString(totalHrs.size()));
 
-
                 int i = (int)e.getX();
-                TextView stepText = findViewById(R.id.data_val);
                 stepText.setText(Long.toString(totalHrs.get(i).steps) + " steps");
-                TextView calText = findViewById(R.id.cal_val);
                 calText.setText(Float.toString(totalHrs.get(i).calories) + " kcal");
-                TextView activeText = findViewById(R.id.active_val);
                 activeText.setText(Long.toString((totalHrs.get(i).activeTime / 60000)) + " min");
-                TextView distText = findViewById(R.id.dist_val);
                 distText.setText(Float.toString(totalHrs.get(i).distance / 1000) + " km");
+
+                dateText.setText(MainActivity.getDateStrFromGraphValue(pos, e.getX()));
+
+                // Hide Text
+                topText.setVisibility(View.INVISIBLE);
+                rightBtn.setVisibility(View.INVISIBLE);
+                leftBtn.setVisibility(View.INVISIBLE);
             }
 
             @Override
             public void onNothingSelected() {
-                TextView stepText = findViewById(R.id.data_val);
-                stepText.setText(Long.toString(total.steps) + " steps");
-                TextView calText = findViewById(R.id.cal_val);
-                calText.setText(Float.toString(total.calories) + " kcal");
-                TextView activeText = findViewById(R.id.active_val);
-                activeText.setText(Long.toString((total.activeTime / 60000)) + " min");
-                TextView distText = findViewById(R.id.dist_val);
-                distText.setText(Float.toString(total.distance / 1000) + " km");
+                updateText(pos);
+                // Show Text
+                topText.setVisibility(View.VISIBLE);
+                rightBtn.setVisibility(View.VISIBLE);
+                leftBtn.setVisibility(View.VISIBLE);
             }
         });
 
@@ -299,7 +373,6 @@ public class MainActivity extends AppCompatActivity {
 
         updateText(pos);
     }
-
     private void readData(final int pos){
         long startTime = 0;
         long endTime = 0;
@@ -365,8 +438,10 @@ public class MainActivity extends AppCompatActivity {
                             int i = 0;
                             long yearI = 0;
                             int dayAcc = 0;
+                            int startMonth = 0;
                             boolean lastDayOfMonth = false;
 
+                            HourEntry dayTotal = new HourEntry();
 
                             for (Bucket bucket : dataReadResponse.getBuckets()) {
                                 List<DataSet> dataSets = bucket.getDataSets();
@@ -376,7 +451,6 @@ public class MainActivity extends AppCompatActivity {
                                 float c = 0;
                                 List<DataPoint> a = new ArrayList<>();
 
-                                HourEntry dayTotal = new HourEntry();
 
                                 for (int dataNo = 0; dataNo < dataSets.size(); ++dataNo)
                                 {
@@ -405,6 +479,7 @@ public class MainActivity extends AppCompatActivity {
                                                     if(today.get(Calendar.MONTH) != tomorrow.get(Calendar.MONTH))
                                                     {
                                                         lastDayOfMonth = true;
+                                                        startMonth = today.get(Calendar.MONTH);
                                                         entries.add(new BarEntry(today.get(Calendar.MONTH), dayAcc));
                                                         dayAcc = 0;
                                                     }
@@ -439,6 +514,8 @@ public class MainActivity extends AppCompatActivity {
                                     dayTotal.add(s, d, c, a);
                                     if(lastDayOfMonth)
                                     {
+                                        while(startMonth != (totalHrs.size() % 12))
+                                            totalHrs.add(new HourEntry());
                                         totalHrs.add(dayTotal);
                                         dayTotal.clear();
                                         lastDayOfMonth = false;
@@ -457,7 +534,13 @@ public class MainActivity extends AppCompatActivity {
                                 Calendar today = Calendar.getInstance();
                                 today.setTimeInMillis(yearI);
                                 entries.add(new BarEntry(today.get(Calendar.MONTH), dayAcc));
+
+                                while(today.get(Calendar.MONTH) != (totalHrs.size() % 12))
+                                    totalHrs.add(new HourEntry());
+                                totalHrs.add(dayTotal);
+                                dayTotal.clear();
                             }
+
 
                         }
                         drawGraph(pos);
@@ -469,7 +552,6 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
-
     public static String getDateStrFromGraphValue(int pos, float value) {
         String wholeDate = "";
 
@@ -647,9 +729,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     void updateText(int pos) {
-        DateFormat dateFormat = getDateInstance();
-        TextView topText = findViewById(R.id.currTimeText);
-        TextView dateText = findViewById(R.id.date_indicator);
+        dateFormat = getDateInstance();
 
         switch(pos)
         {
@@ -681,16 +761,23 @@ public class MainActivity extends AppCompatActivity {
                 dateText.setText(Integer.toString(cal.get(Calendar.YEAR)));
         }
 
-        TextView stepText = findViewById(R.id.data_val);
         stepText.setText(Long.toString(total.steps) + " steps");
-        TextView calText = findViewById(R.id.cal_val);
         calText.setText(Float.toString(total.calories) + " kcal");
-        TextView activeText = findViewById(R.id.active_val);
         activeText.setText(Long.toString((total.activeTime / 60000)) + " min");
-        TextView distText = findViewById(R.id.dist_val);
         distText.setText(Float.toString(total.distance / 1000) + " km");
 
     };
+
+    public void showCal(View v) {
+        if(calView.getVisibility() != CalendarView.VISIBLE)
+        {
+            calView.setVisibility(CalendarView.VISIBLE);
+        }
+        else
+        {
+            calView.setVisibility(CalendarView.GONE);
+        }
+    }
 
 }
 
