@@ -61,7 +61,6 @@
         android:id="@+id/chart"
         android:layout_width="match_parent"
         android:layout_height="301dp"
-        android:layout_marginTop="8dp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/currTimeText">
@@ -71,30 +70,28 @@
     <TextView
         android:id="@+id/currTimeText"
         android:layout_width="wrap_content"
-        android:layout_height="20dp"
-        android:layout_marginEnd="8dp"
-        android:layout_marginLeft="8dp"
-        android:layout_marginRight="8dp"
+        android:layout_height="21dp"
         android:layout_marginStart="8dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginLeft="8dp"
+        android:layout_marginTop="10dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginRight="8dp"
+        android:clickable="true"
+        android:onClick="showCal"
         android:text="Today"
         android:textSize="14sp"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/tabs"
-        android:clickable="true"
-        android:onClick="showCal"/>
+        app:layout_constraintTop_toBottomOf="@+id/tabs" />
 
     <Button
         android:id="@+id/rightBtn"
         android:layout_width="9dp"
         android:layout_height="13dp"
-        android:layout_marginTop="8dp"
+        android:layout_marginTop="14dp"
         android:layout_marginEnd="16dp"
         android:layout_marginRight="16dp"
-        android:layout_marginBottom="8dp"
         android:background="@drawable/right_arrow"
-        app:layout_constraintBottom_toTopOf="@+id/chart"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tabs" />
 
@@ -104,10 +101,8 @@
         android:layout_height="13dp"
         android:layout_marginStart="16dp"
         android:layout_marginLeft="16dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginBottom="8dp"
+        android:layout_marginTop="14dp"
         android:background="@drawable/left_arrow"
-        app:layout_constraintBottom_toTopOf="@+id/chart"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/tabs" />
 
@@ -235,14 +230,11 @@
 
         android:id="@+id/calendarView"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_marginStart="8dp"
-        android:layout_marginLeft="8dp"
-        android:layout_marginTop="8dp"
-        android:layout_marginEnd="8dp"
-        android:layout_marginRight="8dp"
+        android:layout_height="0dp"
         android:background="@android:color/white"
+        app:layout_constraintBottom_toBottomOf="@+id/scrollView2"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/currTimeText" />
+
 </android.support.constraint.ConstraintLayout>
