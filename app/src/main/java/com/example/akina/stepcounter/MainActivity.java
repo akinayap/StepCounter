@@ -2,21 +2,17 @@ package com.example.akina.stepcounter;
 
 import android.app.Activity;
 import android.content.Intent;
-import android.graphics.Color;
 import android.support.annotation.NonNull;
 import android.support.design.widget.TabLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.MotionEvent;
 import android.view.View;
 import android.widget.Button;
 import android.widget.CalendarView;
 import android.widget.TextView;
-import android.widget.Toast;
 
 import com.github.mikephil.charting.charts.BarChart;
-import com.github.mikephil.charting.components.LimitLine;
 import com.github.mikephil.charting.components.XAxis;
 import com.github.mikephil.charting.components.YAxis;
 import com.github.mikephil.charting.data.BarData;
@@ -25,9 +21,9 @@ import com.github.mikephil.charting.data.BarEntry;
 import com.github.mikephil.charting.data.Entry;
 import com.github.mikephil.charting.formatter.IAxisValueFormatter;
 import com.github.mikephil.charting.highlight.Highlight;
-import com.github.mikephil.charting.listener.ChartTouchListener;
-import com.github.mikephil.charting.listener.OnChartGestureListener;
 import com.github.mikephil.charting.listener.OnChartValueSelectedListener;
+import com.google.android.gms.analytics.HitBuilders;
+import com.google.android.gms.analytics.Tracker;
 import com.google.android.gms.auth.api.signin.GoogleSignIn;
 import com.google.android.gms.fitness.Fitness;
 import com.google.android.gms.fitness.FitnessOptions;
@@ -43,23 +39,23 @@ import com.google.android.gms.tasks.OnCompleteListener;
 import com.google.android.gms.tasks.OnFailureListener;
 import com.google.android.gms.tasks.OnSuccessListener;
 import com.google.android.gms.tasks.Task;
+import com.google.firebase.analytics.FirebaseAnalytics;
 
-import java.sql.Time;
 import java.text.DateFormat;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.Date;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 import static java.text.DateFormat.getDateInstance;
 import static java.text.DateFormat.getTimeInstance;
 
 public class MainActivity extends AppCompatActivity {
+
+    private FirebaseAnalytics mFirebaseAnalytics;
 
     public static final int STARTYEAR = 2016;
     public static final String[] months = new String[]{
@@ -81,20 +77,29 @@ public class MainActivity extends AppCompatActivity {
 
     int currPos;
 
-    long today;
-    long currHour;
-    static long currWeek;
-    static long currMonth;
-    static long currYear;
+    long today, currHour;
+    static long currWeek, currMonth, currYear;
 
     DateFormat dateFormat;
     DecimalFormat df;
     TextView topText, dateText, stepText, calText, activeText, distText, activeT, distT, calT;
 
+    // Create a reference for the tracker - Google Analytics
+    Tracker mTracker;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        // Initializing tracking here
+
+        // Using Google Analytics
+        AnalyticsTools application = (AnalyticsTools) getApplication();
+        mTracker = application.getDefaultTracker();
+
+        // Using Firebase
+        //mFirebaseAnalytics = FirebaseAnalytics.getInstance(this);
 
         dateFormat = getDateInstance();
         df = new DecimalFormat("#.##");
@@ -137,6 +142,27 @@ public class MainActivity extends AppCompatActivity {
                 int pos = tab.getPosition();
                 currPos = pos;
                 readData(pos);
+
+
+
+                // The Google Analytics and Firebase code is used where you want to log info on button press.
+
+                // Using Google Analytics
+                // setCategory is used to group multiple actions into the same category
+                // setAction is used to determine what is the final action
+                mTracker.send(new HitBuilders.EventBuilder()
+                        .setCategory("Select")
+                        .setAction("Tab " + pos)
+                        .build());
+
+
+                // Using Firebase
+                // ClickedOnTab (Created custom tab)
+                /*
+                Bundle bundle = new Bundle();
+                bundle.putString(FirebaseAnalytics.Param.ITEM_NAME, "Clicked on tab" + pos);
+                mFirebaseAnalytics.logEvent("ClickedOnTab", bundle);
+                */
 
                 topText.setText(dateFormat.format(currHour));
                 //if(today == currHour)
